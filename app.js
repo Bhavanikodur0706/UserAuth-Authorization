@@ -4,6 +4,7 @@ const User = require('./model/user')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const cookieParser = require('cookie-parser')
+const auth = require('./middleware/auth')
 
 const express = require('express')
 
@@ -113,4 +114,22 @@ app.post('/login', async(req,res)=>{
         console.log(error)
     }
 })
+
+//creating a dashboard route
+app.get("/dashboard",auth, (req, res)=>{
+    console.log(req.user); //to see what user have
+    res.send('<h1>welcome to dashboard</h1>')
+})
+//logic for logout
+app.post('/logout', (req, res) => {
+    try {
+        // Clear the token cookie
+        res.clearCookie('token');    
+        res.status(200).send('Logged out successfully');
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
 module.exports = app;
