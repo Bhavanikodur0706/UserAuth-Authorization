@@ -3,13 +3,15 @@ require ("./database/database").connect()
 const User = require('./model/user')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
 
 const express = require('express')
 
 const app = express()
 
 //middleware
-app.use(express.json())
+app.use(express.json())//so that middleware undersatnd json format 
+app.use(cookieParser()) //now app will understand cookie and interact with them
 
 
 app.get("/",(req,res)=>{
@@ -59,13 +61,55 @@ app.post("/register",async (req,res)=>{
     }
 })
 
-app.post('login', async(req,res)=>{
+app.post('/login', async(req,res)=>{
     try{
         //get all data from frontend
-        //find user in db
-        //match the password
+        const {email, password} = req.body //destructuring and checking the data from body
+        //validation
+        if(!(email && password)) {
+            res.status(400).send('send all the data')  
+        }
+
+        //find user in db, it is querty to db so we can do that check with User
+        const user = await User.findOne({email})
+        //if user does not exists in db
+        if(!(user)){
+            res.status(400).send('user doesnot exists, please register')
+          process.exit(1)
+        }
+
+        //match the password,
+        //here comparing password with hash password and if true/false , check if user exits
+        if(user && (await bcrypt.compare(password,user.password))){
+           //if user and password exists, we generate token 
+           const token = jwt.sign(
+            {id:user._id},
+            'shhh' , //process.env.jwt secrete
+            {
+                expiresIn : "2h"
+            }
+
+           );
+           user.token = token
+           user.password = undefined
+           //send token in userCookie
+           //cookie section 
+           const options = {
+            expiresIn : new Date(Date.now()+ 3 * 24 * 60 * 60 * 1000),
+            httpOnly : true //by making this flag on can make cookie manipulated by server only, not browser 
+           };
+           res.status(200).cookie("token", token , options).json(
+            {
+                success : true,
+                token,
+                user
+            }
+           )
+        }
+
         //send token
-    }catch(error) {
+    }
+    catch(error) {
         console.log(error)
     }
 })
